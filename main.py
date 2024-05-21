@@ -32,9 +32,14 @@ import tree_sitter_python as tspython
 
 import openai
 
-openai.api_base = os.getenv("OPENAI_API_BASE")
+
 openai.api_key = os.getenv("OPENAI_API_KEY")
-openai.organization = os.getenv("OPENAI_ORG")
+
+if os.getenv("OPENAI_API_BASE"):
+    openai.api_base = os.getenv("OPENAI_API_BASE")
+
+if os.getenv("OPENAI_ORG"):
+    openai.organization = os.getenv("OPENAI_ORG")
 
 INSTRUCTIONS = (
     """You are helpful electronic assistant with knowledge of Software Engineering."""
@@ -203,7 +208,7 @@ class SourceFile:
 
 
 
-class PythonLanguageStrategy(LanguageStrategy):
+class PythonLanguageStrategy():
     def function_has_comment(self, node) -> bool:
         """Checks if function has a docstring. Example node:
         (function_definition name: (identifier) parameters: (parameters)
@@ -291,6 +296,9 @@ def add_type_hints(function_node, hints: list) -> list:
 
 
 def process_untyped_functions(source_file: SourceFile):
+    """
+    returns list of tuple (node, function_text, needs_typing)
+    """
     path = source_file.path
     logger.info('Processing "%s"...', path)
     _, file_extension = os.path.splitext(path)
@@ -304,6 +312,7 @@ def process_untyped_functions(source_file: SourceFile):
 
 
 def process_untyped_functions_in_tree(tree, language_strategy):
+    """yields (tree, node, function_text, needs_typing)"""
     for node in language_strategy.get_function_nodes(tree):
         name = node_str(node.child_by_field_name("name"))
         params_node = node.child_by_field_name("parameters")
@@ -325,7 +334,7 @@ def process_untyped_functions_in_tree(tree, language_strategy):
         if needs_typing:
             function_text = node_str(node)
             # Should make an object
-            yield (tree, node, function_text, needs_typing)
+            yield (node, function_text, needs_typing)
 
         # https://github.com/tree-sitter/tree-sitter-python/blob/master/grammar.js
         # print(node.sexp())
